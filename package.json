@@ -1,0 +1,22 @@
+{
+  "name": "calendar-mod",
+  "version": "1.0.0",
+  "description": "Automatically fill my calendar for school",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mbilker/calendar-mod.git"
+  },
+  "author": "Matt Bilker <me@mbilker.us>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mbilker/calendar-mod/issues"
+  },
+  "homepage": "https://github.com/mbilker/calendar-mod#readme",
+  "dependencies": {
+    "googleapis": "^4.0.0"
+  }
+}
