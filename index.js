@@ -103,19 +103,6 @@ function storeToken(token) {
   console.log('Token stored to ' + TOKEN_PATH);
 }
 
-
-const defaultEvent = {
-  'summary': '', // replaced
-  'start': {
-    'dateTime': '2015-05-28T09:00:00-07:00', // replaced
-    'timeZone': 'America/New_York',
-  },
-  'end': {
-    'dateTime': '2015-05-28T17:00:00-07:00', // replaced
-    'timeZone': 'America/New_York',
-  },
-};
-
 function insertEvent(obj) {
   const calendar = google.calendar('v3');
 
