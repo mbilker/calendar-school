@@ -116,32 +116,59 @@ const defaultEvent = {
   },
 };
 
-function makeEntry() {
+function insertEvent(obj) {
   const calendar = google.calendar('v3');
 
-  const entries = require('./events.json');
-  const day = new Date().toISOString().split('T')[0];;
+  calendar.events.insert({
+    calendarId: 'primary',
+    resource: obj,
+  }, function(err, event) {
+    if (err) {
+      console.log('There was an error contacting the Calendar service: ' + err);
+      return;
+    }
+    console.log('Event created: %s', event.htmlLink);
+  });
+}
 
+function createEventObject(summary, start, end) {
+  return {
+    'summary': summary,
+    'start': {
+      'dateTime': start,
+      'timeZone': 'America/New_York',
+    },
+    'end': {
+      'dateTime': end,
+      'timeZone': 'America/New_York',
+    },
+  };
+}
+
+function processRegularClass(day, timezone, entry) {
+  const obj = createEventObject(entry[0], `${day}T${entry[1]}${timezone}`, `${day}T${entry[2]}${timezone}`);
+  insertEvent(obj);
+}
+
+function processElective(day, timezone, times, className) {
+  const obj = createEventObject(className, `${day}T${times[0]}${timezone}`, `${day}T${times[1]}${timezone}`);
+  insertEvent(obj);
+}
+
+function makeEntry() {
+  const entries = require('./events.json');
+  //const day = new Date().toISOString().split('T')[0];;
+  const day = '2016-04-04';
   const timezone = '-05:00';
 
   for (const entry of entries) {
     if (!Array.isArray(entry[0])) {
-      let obj = Object.assign({}, defaultEvent);
-      obj.summary = entry[0];
-      obj.start.dateTime = `${day}T${entry[1]}${timezone}`;
-      obj.end.dateTime = `${day}T${entry[2]}${timezone}`;
-      console.log(obj);
-
-      calendar.events.insert({
-        calendarId: 'primary',
-        resource: obj,
-      }, function(err, event) {
-        if (err) {
-          console.log('There was an error contacting the Calendar service: ' + err);
-          return;
-        }
-        console.log('Event created: %s', event.htmlLink);
-      });
+      processRegularClass(day, timezone, entry);
+    } else {
+      const times = entry[0];
+      for (const className of entry[1]) {
+        //processElective(day, timezone, times, className);
+      }
     }
   }
 }
