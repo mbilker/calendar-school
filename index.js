@@ -103,6 +103,45 @@ function storeToken(token) {
   console.log('Token stored to ' + TOKEN_PATH);
 }
 
+/**
+ * Lists the next 10 events on the user's primary calendar.
+ *
+ * @param {string} timeMin ISO time string for minimum time.
+ * @param {function} cb Callback for calendar entries.
+ */
+function listEvents(timeMin, timeMax) {
+  const calendar = google.calendar('v3');
+
+  return new Promise((resolve) => {
+    calendar.events.list({
+      calendarId: 'primary',
+      timeMin: timeMin,
+      timeMax: timeMax,
+      singleEvents: true,
+      orderBy: 'startTime'
+    }, function(err, response) {
+      if (err) {
+        console.log('The API returned an error: ' + err);
+        return;
+      }
+
+      var events = response.items;
+      if (events.length == 0) {
+        console.log('No upcoming events found.');
+      } else {
+        console.log('Upcoming 10 events:');
+        for (var i = 0; i < events.length; i++) {
+          var event = events[i];
+          var start = event.start.dateTime || event.start.date;
+          console.log('%s - %s', start, event.summary);
+        }
+      }
+
+      resolve(response.items);
+    });
+  });
+}
+
 function insertEvent(obj) {
   const calendar = google.calendar('v3');
 
@@ -133,29 +172,62 @@ function createEventObject(summary, start, end) {
 }
 
 function processRegularClass(day, timezone, entry) {
-  const obj = createEventObject(entry[0], `${day}T${entry[1]}${timezone}`, `${day}T${entry[2]}${timezone}`);
-  insertEvent(obj);
+  return createEventObject(entry[0], `${day}T${entry[1]}${timezone}`, `${day}T${entry[2]}${timezone}`);
 }
 
 function processElective(day, timezone, times, className) {
-  const obj = createEventObject(className, `${day}T${times[0]}${timezone}`, `${day}T${times[1]}${timezone}`);
-  insertEvent(obj);
+  return createEventObject(className, `${day}T${times[0]}${timezone}`, `${day}T${times[1]}${timezone}`);
 }
 
 function makeEntry() {
   const entries = require('./events.json');
-  //const day = new Date().toISOString().split('T')[0];;
-  const day = '2016-04-04';
+  //const day = new Date().toISOString().split('T')[0];
+
+  const sunday = new Date();
+  sunday.setMilliseconds(0);
+  sunday.setSeconds(0);
+  sunday.setMinutes(0);
+  sunday.setHours(0);
+  sunday.setDate(sunday.getDate() - sunday.getDay());
+  const sundayEpoch = sunday.getTime();
+
+  const dates = [ 1, 2, 3, 4, 5 ].map(x => {
+    const d = new Date(sundayEpoch);
+    d.setDate(d.getDate() + x);
+    return d;
+  });
+  const dateStrings = dates.map(x => x.toISOString().split('T')[0]);
+
   const timezone = '-05:00';
 
-  for (const entry of entries) {
-    if (!Array.isArray(entry[0])) {
-      processRegularClass(day, timezone, entry);
-    } else {
-      const times = entry[0];
-      for (const className of entry[1]) {
-        //processElective(day, timezone, times, className);
+  let potentialCalendarEvents = [];
+
+  for (const day of dateStrings) {
+    for (const entry of entries) {
+      if (!Array.isArray(entry[0])) {
+        potentialCalendarEvents.push(processRegularClass(day, timezone, entry));
+      } else {
+        const times = entry[0];
+        for (const className of entry[1]) {
+          //potentialCalendarEvents.push(processElective(day, timezone, times, className));
+        }
       }
     }
   }
+
+  const endTime = new Date(dates[dates.length - 1].getTime());
+  endTime.setDate(endTime.getDate() + 1);
+
+  listEvents(dates[0].toISOString(), endTime.toISOString()).then((items) => {
+    const filtered = potentialCalendarEvents.filter(ev => {
+      const searchCalendar = (el) => el.summary === ev.summary && (new Date(el.start.dateTime)).getTime() === (new Date(ev.start.dateTime)).getTime();
+      if (items.some(searchCalendar)) {
+        return false;
+      }
+      return true;
+    });
+
+    console.log(filtered);
+    filtered.forEach(x => insertEvent(x));
+  });
 }
