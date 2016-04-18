@@ -199,18 +199,20 @@ function makeEntry() {
   const dateStrings = dates.map(x => x.toISOString().split('T')[0]);
 
   const timezone = '-05:00';
+  const numberRegex = /^DAY (\d)/;
 
   let potentialCalendarEvents = [];
+  let electiveCalendarEvents = [];
 
-  for (const day of dateStrings) {
-    for (const entry of entries) {
-      if (!Array.isArray(entry[0])) {
+  for (const entry of entries) {
+    if (!Array.isArray(entry[0])) {
+      for (const day of dateStrings) {
         potentialCalendarEvents.push(processRegularClass(day, timezone, entry));
-      } else {
-        const times = entry[0];
-        for (const className of entry[1]) {
-          //potentialCalendarEvents.push(processElective(day, timezone, times, className));
-        }
+      }
+    } else {
+      const times = entry[0];
+      for (const className of entry[1]) {
+        electiveCalendarEvents.push({ times, className });
       }
     }
   }
@@ -219,6 +221,16 @@ function makeEntry() {
   endTime.setDate(endTime.getDate() + 1);
 
   listEvents(dates[0].toISOString(), endTime.toISOString()).then((items) => {
+    const electiveEvents = items.filter(eev => numberRegex.test(eev.summary)).map(eev => {
+      const parsed = numberRegex.exec(eev.summary);
+      const dayNumber = parseInt(parsed[1]);
+      const elective = electiveCalendarEvents[dayNumber - 1];
+
+      return processElective(eev.start.date, timezone, elective.times, elective.className);
+    });
+
+    potentialCalendarEvents = potentialCalendarEvents.concat(electiveEvents);
+
     const filtered = potentialCalendarEvents.filter(ev => {
       const searchCalendar = (el) => el.summary === ev.summary && (new Date(el.start.dateTime)).getTime() === (new Date(ev.start.dateTime)).getTime();
       if (items.some(searchCalendar)) {
