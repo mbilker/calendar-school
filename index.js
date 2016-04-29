@@ -12,6 +12,18 @@ var TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH ||
     process.env.USERPROFILE) + '/.credentials/';
 var TOKEN_PATH = TOKEN_DIR + 'school-calendar.json';
 
+let weekOffset = 0;
+if (process.argv.length > 2) {
+  console.log(process.argv[2]);
+  try {
+    weekOffset = Math.abs(parseInt(process.argv[2]));
+  } catch (e) {
+    console.error('Invalid number for week offset', e);
+    console.error(e.stack);
+    process.exit(1);
+  }
+}
+
 // Load client secrets from a local file.
 fs.readFile('client_secret.json', function processClientSecrets(err, content) {
   if (err) {
@@ -128,13 +140,6 @@ function listEvents(timeMin, timeMax) {
       var events = response.items;
       if (events.length == 0) {
         console.log('No upcoming events found.');
-      } else {
-        console.log('Upcoming 10 events:');
-        for (var i = 0; i < events.length; i++) {
-          var event = events[i];
-          var start = event.start.dateTime || event.start.date;
-          console.log('%s - %s', start, event.summary);
-        }
       }
 
       resolve(response.items);
@@ -188,7 +193,7 @@ function makeEntry() {
   sunday.setSeconds(0);
   sunday.setMinutes(0);
   sunday.setHours(0);
-  sunday.setDate(sunday.getDate() - sunday.getDay());
+  sunday.setDate(sunday.getDate() - sunday.getDay() + (7 * weekOffset));
   const sundayEpoch = sunday.getTime();
 
   const dates = [ 1, 2, 3, 4, 5 ].map(x => {
