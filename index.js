@@ -185,7 +185,8 @@ function processElective(day, timezone, times, className) {
 }
 
 function makeEntry() {
-  const entries = require('./events.json');
+  const standardEntries = require('./events.json');
+  const keystoneEntries = require('./events_keystone.json');
   //const day = new Date().toISOString().split('T')[0];
 
   const sunday = new Date();
@@ -196,7 +197,7 @@ function makeEntry() {
   sunday.setDate(sunday.getDate() - sunday.getDay() + (7 * weekOffset));
   const sundayEpoch = sunday.getTime();
 
-  const dates = [ 1, 2, 3, 4, 5 ].map(x => {
+  const dates = [1, 2, 3, 4, 5].map(x => {
     const d = new Date(sundayEpoch);
     d.setDate(d.getDate() + x);
     return d;
@@ -205,28 +206,43 @@ function makeEntry() {
 
   const timezone = '-05:00';
   const numberRegex = /^DAY (\d)/;
+  const keystoneRegex = /^KEYSTONE/;
 
   let potentialCalendarEvents = [];
   let electiveCalendarEvents = [];
 
-  for (const entry of entries) {
-    if (!Array.isArray(entry[0])) {
-      for (const day of dateStrings) {
+  const addEvents = (day, entries) => {
+    for (const entry of entries) {
+      if (Array.isArray(entry[0])) {
+        const times = entry[0];
+        for (const className of entry[1]) {
+          electiveCalendarEvents.push({ times, className });
+        }
+      } else {
         potentialCalendarEvents.push(processRegularClass(day, timezone, entry));
       }
-    } else {
-      const times = entry[0];
-      for (const className of entry[1]) {
-        electiveCalendarEvents.push({ times, className });
-      }
     }
-  }
+  };
 
   const endTime = new Date(dates[dates.length - 1].getTime());
   endTime.setDate(endTime.getDate() + 1);
 
   listEvents(dates[0].toISOString(), endTime.toISOString()).then((items) => {
-    const electiveEvents = items.filter(eev => numberRegex.test(eev.summary)).map(eev => {
+    const keystoneEvents = items.filter(eev => keystoneRegex.test(eev.summary))
+      .map(eev => eev.start.date);
+
+    for (const day of dateStrings) {
+      if (keystoneEvents.indexOf(day) > -1) {
+        addEvents(day, keystoneEntries);
+      } else {
+        addEvents(day, standardEntries);
+      }
+      //console.log(day, keystoneEvents.indexOf(day));
+    }
+
+    const electiveEvents = items.filter(eev =>
+      numberRegex.test(eev.summary) && keystoneEvents.indexOf(eev.start.date) === -1
+    ).map(eev => {
       const parsed = numberRegex.exec(eev.summary);
       const dayNumber = parseInt(parsed[1]);
       const elective = electiveCalendarEvents[dayNumber - 1];
@@ -234,10 +250,12 @@ function makeEntry() {
       return processElective(eev.start.date, timezone, elective.times, elective.className);
     });
 
-    potentialCalendarEvents = potentialCalendarEvents.concat(electiveEvents);
-
-    const filtered = potentialCalendarEvents.filter(ev => {
-      const searchCalendar = (el) => el.summary === ev.summary && (new Date(el.start.dateTime)).getTime() === (new Date(ev.start.dateTime)).getTime();
+    const calendarEvents = potentialCalendarEvents.concat(electiveEvents);
+    const filtered = calendarEvents.filter(ev => {
+      const searchCalendar = (el) => (
+        el.summary === ev.summary
+        && new Date(el.start.dateTime).getTime() === new Date(ev.start.dateTime).getTime()
+      );
       if (items.some(searchCalendar)) {
         return false;
       }
