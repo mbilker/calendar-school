@@ -206,6 +206,7 @@ function makeEntry() {
 
   const timezone = '-05:00';
   const numberRegex = /^DAY (\d)/;
+  const noSchoolRegex = /^NO SCHOOL/;
   const keystoneRegex = /^KEYSTONE/;
 
   let potentialCalendarEvents = [];
@@ -228,20 +229,24 @@ function makeEntry() {
   endTime.setDate(endTime.getDate() + 1);
 
   listEvents(dates[0].toISOString(), endTime.toISOString()).then((items) => {
+    const noSchoolEvents = items.filter(eev => noSchoolRegex.test(eev.summary))
+      .map(eev => eev.start.date);
     const keystoneEvents = items.filter(eev => keystoneRegex.test(eev.summary))
       .map(eev => eev.start.date);
 
     for (const day of dateStrings) {
       if (keystoneEvents.indexOf(day) > -1) {
         addEvents(day, keystoneEntries);
-      } else {
+      } else if (noSchoolEvents.indexOf(day) === -1) {
         addEvents(day, standardEntries);
       }
       //console.log(day, keystoneEvents.indexOf(day));
     }
 
     const electiveEvents = items.filter(eev =>
-      numberRegex.test(eev.summary) && keystoneEvents.indexOf(eev.start.date) === -1
+      numberRegex.test(eev.summary)
+      && noSchoolEvents.indexOf(eev.start.date) === -1
+      && keystoneEvents.indexOf(eev.start.date) === -1
     ).map(eev => {
       const parsed = numberRegex.exec(eev.summary);
       const dayNumber = parseInt(parsed[1]);
