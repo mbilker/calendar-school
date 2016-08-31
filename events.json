@@ -1,20 +1,10 @@
 [
-  ["AP Calculus", "06:49:00", "07:37:00"],
-  [
-    ["07:41:00", "08:29:00"],
-    [
-      "Concert Band",
-      "AP Physics Lab",
-      "Concert Band",
-      "Study Hall",
-      "AP Physics Lab",
-      "Study Hall"
-    ]
-  ],
-  ["AP Physics", "08:33:00", "09:20:00"],
-  ["Economics", "09:24:00", "10:12:00"],
-  ["Lunch", "10:16:00", "10:46:00"],
-  ["AP Computer Science", "10:49:00", "11:37:00"],
-  ["Advanced Topics in Engineering", "11:41:00", "12:29:00"],
-  ["English", "12:33:00", "13:21:00"]
+  ["Math Recitation", "09:00:00", "09:50:00", "13"],
+  ["Math Lecture", "09:30:00", "10:45:00", "24"],
+  ["Freshman Program A&S", "10:00:00", "10:50:00", "5"],
+  ["Japanese Lecture", "11:00:00", "11:50:00", "24"],
+  ["Japanese Rescitation", "14:00:00", "14:50:00"],
+  ["CS Data Structures Recitation", "11:00:00", "11:50:00", "5"],
+  ["English Composition", "15:00:00", "15:50:00", "135"],
+  ["CS Data Structures Lecture", "16:00:00", "17:15:00", "24"]
 ]

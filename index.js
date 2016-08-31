@@ -1,4 +1,4 @@
-"use strict";
+ "use strict";
 
 const fs = require('fs');
 const path = require('path');
@@ -162,33 +162,35 @@ function insertEvent(obj) {
   });
 }
 
-function createEventObject(summary, start, end) {
+function createEventObject(options) {
   return {
-    'summary': summary,
+    'summary': options.summary,
     'start': {
-      'dateTime': start,
-      'timeZone': 'America/New_York',
+      'dateTime': options.start,
     },
     'end': {
-      'dateTime': end,
-      'timeZone': 'America/New_York',
+      'dateTime': options.end,
     },
   };
 }
 
-function processRegularClass(day, timezone, entry) {
-  return createEventObject(entry[0], `${day}T${entry[1]}${timezone}`, `${day}T${entry[2]}${timezone}`);
-}
+/*
+ * Helper functions to create the event objects that the Google Calendar API uses
+ */
+function processRegularClass(day, offset, timezone, entry) {
+  const days = entry[3] || '12345';
 
-function processElective(day, timezone, times, className) {
-  return createEventObject(className, `${day}T${times[0]}${timezone}`, `${day}T${times[1]}${timezone}`);
+  if (days.indexOf(offset.toString()) > -1) {
+    return createEventObject({ summary: entry[0], start: `${day}T${entry[1]}${timezone}`, end: `${day}T${entry[2]}${timezone}` });
+  }
 }
 
 function makeEntry() {
+  // Load event templates
   const standardEntries = require('./events.json');
-  const keystoneEntries = require('./events_keystone.json');
-  //const day = new Date().toISOString().split('T')[0];
 
+  // Find the Sunday for the current week,
+  // Sunday's `getDate()` is 0, use it to find Monday - Friday
   const sunday = new Date();
   sunday.setMilliseconds(0);
   sunday.setSeconds(0);
@@ -197,65 +199,45 @@ function makeEntry() {
   sunday.setDate(sunday.getDate() - sunday.getDay() + (7 * weekOffset));
   const sundayEpoch = sunday.getTime();
 
-  const dates = [1, 2, 3, 4, 5].map(x => {
+  // Generate the dates corresponding to Monday - Friday
+  // using offsets from Sunday
+  const offsets = [1, 2, 3, 4, 5];
+  const dates = offsets.map(x => {
     const d = new Date(sundayEpoch);
     d.setDate(d.getDate() + x);
     return d;
   });
   const dateStrings = dates.map(x => x.toISOString().split('T')[0]);
 
-  const timezone = '-05:00';
-  const numberRegex = /^DAY (\d)/;
+  // Regex for matching calendar event descriptions
+  const timezone = '-04:00';
   const noSchoolRegex = /^NO SCHOOL/;
-  const keystoneRegex = /^KEYSTONE/;
 
+  // Storage for potential events, filtered later if present already on calendar
   let potentialCalendarEvents = [];
-  let electiveCalendarEvents = [];
 
-  const addEvents = (day, entries) => {
+  // Parse through template to generate the calendar events
+  const addEvents = (day, offset, entries) => {
     for (const entry of entries) {
-      if (Array.isArray(entry[0])) {
-        const times = entry[0];
-        for (const className of entry[1]) {
-          electiveCalendarEvents.push({ times, className });
-        }
-      } else {
-        potentialCalendarEvents.push(processRegularClass(day, timezone, entry));
-      }
+      potentialCalendarEvents.push(processRegularClass(day, offset, timezone, entry));
     }
   };
 
+  // The end time to fetch from Google Calendar, only fetch to Friday
   const endTime = new Date(dates[dates.length - 1].getTime());
   endTime.setDate(endTime.getDate() + 1);
 
   listEvents(dates[0].toISOString(), endTime.toISOString()).then((items) => {
     const noSchoolEvents = items.filter(eev => noSchoolRegex.test(eev.summary))
       .map(eev => eev.start.date);
-    const keystoneEvents = items.filter(eev => keystoneRegex.test(eev.summary))
-      .map(eev => eev.start.date);
 
-    for (const day of dateStrings) {
-      if (keystoneEvents.indexOf(day) > -1) {
-        addEvents(day, keystoneEntries);
-      } else if (noSchoolEvents.indexOf(day) === -1) {
-        addEvents(day, standardEntries);
+    dateStrings.forEach((day, i) => {
+      if (noSchoolEvents.indexOf(day) === -1) {
+        addEvents(day, offsets[i], standardEntries);
       }
-      //console.log(day, keystoneEvents.indexOf(day));
-    }
-
-    const electiveEvents = items.filter(eev =>
-      numberRegex.test(eev.summary)
-      && noSchoolEvents.indexOf(eev.start.date) === -1
-      && keystoneEvents.indexOf(eev.start.date) === -1
-    ).map(eev => {
-      const parsed = numberRegex.exec(eev.summary);
-      const dayNumber = parseInt(parsed[1]);
-      const elective = electiveCalendarEvents[dayNumber - 1];
-
-      return processElective(eev.start.date, timezone, elective.times, elective.className);
     });
 
-    const calendarEvents = potentialCalendarEvents.concat(electiveEvents);
+    const calendarEvents = potentialCalendarEvents.filter((el) => !!el).reduce((prev, next) => prev.concat(next), []);
     const filtered = calendarEvents.filter(ev => {
       const searchCalendar = (el) => (
         el.summary === ev.summary
