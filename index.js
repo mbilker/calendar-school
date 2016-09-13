@@ -165,6 +165,7 @@ function insertEvent(obj) {
 function createEventObject(options) {
   return {
     'summary': options.summary,
+    'location': options.location,
     'start': {
       'dateTime': options.start,
     },
@@ -178,10 +179,10 @@ function createEventObject(options) {
  * Helper functions to create the event objects that the Google Calendar API uses
  */
 function processRegularClass(day, offset, timezone, entry) {
-  const days = entry[3] || '12345';
+  const days = entry[4] || '12345';
 
   if (days.indexOf(offset.toString()) > -1) {
-    return createEventObject({ summary: entry[0], start: `${day}T${entry[1]}${timezone}`, end: `${day}T${entry[2]}${timezone}` });
+    return createEventObject({ summary: entry[0], location: entry[1], start: `${day}T${entry[2]}${timezone}`, end: `${day}T${entry[3]}${timezone}` });
   }
 }
 
