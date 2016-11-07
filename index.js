@@ -211,7 +211,7 @@ function makeEntry() {
   const dateStrings = dates.map(x => x.toISOString().split('T')[0]);
 
   // Regex for matching calendar event descriptions
-  const timezone = '-04:00';
+  const timezone = '-05:00';
   const noSchoolRegex = /^NO SCHOOL/;
 
   // Storage for potential events, filtered later if present already on calendar
