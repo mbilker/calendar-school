@@ -1,0 +1,12 @@
+[
+  ["Math Recitation", "Thackeray 627", "09:00:00", "09:50:00", "1"],
+  ["Math Recitation", "Posvar 1200A", "09:00:00", "09:50:00", "3"],
+  ["Math Lecture", "Lawrence 107", "09:30:00", "10:45:00", "24"],
+  ["Freshman Program A&S", "Thackeray 321", "10:00:00", "10:50:00", "5"],
+  ["Japanese Lecture", "Cathy 208B", "11:00:00", "11:50:00", "24"],
+  ["Japanese Rescitation", "Cathy 2732", "14:00:00", "14:50:00"],
+  ["CS Data Structures Recitation", "Sennott 5505", "11:00:00", "11:50:00", "5"],
+  ["CS Data Structures Lecture", "Lawrence 104", "16:00:00", "17:15:00", "24"],
+  ["CS Club Meeting", "Sennott 5317", "19:00:00", "20:00:00", "1"],
+  ["Cyber Security Club Meeting", "Sennott 5317", "21:00:00", "22:00:00", "3"]
+]

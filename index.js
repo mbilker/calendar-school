@@ -7,10 +7,10 @@ const readline = require('readline');
 const google = require('googleapis');
 const OAuth2 = google.auth.OAuth2;
 
-var SCOPES = ['https://www.googleapis.com/auth/calendar'];
-var TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH ||
+const SCOPES = ['https://www.googleapis.com/auth/calendar'];
+const TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH ||
     process.env.USERPROFILE) + '/.credentials/';
-var TOKEN_PATH = TOKEN_DIR + 'school-calendar.json';
+const TOKEN_PATH = TOKEN_DIR + 'school-calendar.json';
 
 let weekOffset = 0;
 if (process.argv.length > 2) {
@@ -116,28 +116,57 @@ function storeToken(token) {
 }
 
 /**
+ * Gets the calendar named 'School'.
+ *
+ * @return {string} id calendarId for 'School' calendar.
+ */
+function getCalendarId() {
+  const calendar = google.calendar('v3');
+
+  return new Promise((resolve, reject) => {
+    calendar.calendarList.list({}, function(err, response) {
+      if (err) {
+        reject(err);
+        return;
+      } else if (response.items.length === 0) {
+        reject(new Error('no calendars available'));
+        return;
+      }
+
+      for (const item of response.items) {
+        if (item.summary === 'School') {
+          resolve(item.id);
+          return;
+        }
+      }
+    });
+  });
+}
+
+/**
  * Lists the next 10 events on the user's primary calendar.
  *
  * @param {string} timeMin ISO time string for minimum time.
  * @param {function} cb Callback for calendar entries.
  */
-function listEvents(timeMin, timeMax) {
+function listEvents(calendarId, timeMin, timeMax) {
   const calendar = google.calendar('v3');
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     calendar.events.list({
-      calendarId: 'primary',
-      timeMin: timeMin,
-      timeMax: timeMax,
+      calendarId,
+      timeMin,
+      timeMax,
       singleEvents: true,
       orderBy: 'startTime'
     }, function(err, response) {
       if (err) {
         console.log('The API returned an error: ' + err);
+        reject(err);
         return;
       }
 
-      var events = response.items;
+      const events = response.items;
       if (events.length == 0) {
         console.log('No upcoming events found.');
       }
@@ -147,12 +176,12 @@ function listEvents(timeMin, timeMax) {
   });
 }
 
-function insertEvent(obj) {
+function insertEvent(calendarId, resource) {
   const calendar = google.calendar('v3');
 
   calendar.events.insert({
-    calendarId: 'primary',
-    resource: obj,
+    calendarId,
+    resource,
   }, function(err, event) {
     if (err) {
       console.log('There was an error contacting the Calendar service: ' + err);
@@ -178,15 +207,17 @@ function createEventObject(options) {
 /*
  * Helper functions to create the event objects that the Google Calendar API uses
  */
-function processRegularClass(day, offset, timezone, entry) {
-  const days = entry[4] || '12345';
+function processRegularClass(day, offset, timezone, [summary, location, start, end, specifiedDays]) {
+  const days = specifiedDays || '12345';
 
   if (days.indexOf(offset.toString()) > -1) {
-    return createEventObject({ summary: entry[0], location: entry[1], start: `${day}T${entry[2]}${timezone}`, end: `${day}T${entry[3]}${timezone}` });
+    return createEventObject({ summary, location, start: `${day}T${start}${timezone}`, end: `${day}T${end}${timezone}` });
   }
 }
 
 function makeEntry() {
+  let calendarId = null;
+
   // Load event templates
   const standardEntries = require('./events.json');
 
@@ -228,7 +259,12 @@ function makeEntry() {
   const endTime = new Date(dates[dates.length - 1].getTime());
   endTime.setDate(endTime.getDate() + 1);
 
-  listEvents(dates[0].toISOString(), endTime.toISOString()).then((items) => {
+  // Get the 'School' calendar from the list of calendars the account has access to.
+  getCalendarId().then((id) => {
+    calendarId = id;
+
+    return listEvents(calendarId, dates[0].toISOString(), endTime.toISOString());
+  }).then((items) => {
     const noSchoolEvents = items.filter(eev => noSchoolRegex.test(eev.summary))
       .map(eev => eev.start.date);
 
@@ -251,6 +287,8 @@ function makeEntry() {
     });
 
     console.log(filtered);
-    filtered.forEach(x => insertEvent(x));
+    filtered.forEach(x => insertEvent(calendarId, x));
+  }).catch((err) => {
+    console.error(err);
   });
 }
