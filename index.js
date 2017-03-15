@@ -121,6 +121,10 @@ function storeToken(token) {
  * @return {string} id calendarId for 'School' calendar.
  */
 function getCalendarId() {
+  // Override to use default calendar.
+  return Promise.resolve('primary');
+
+/*
   const calendar = google.calendar('v3');
 
   return new Promise((resolve, reject) => {
@@ -141,6 +145,7 @@ function getCalendarId() {
       }
     });
   });
+*/
 }
 
 /**
@@ -207,19 +212,58 @@ function createEventObject(options) {
 /*
  * Helper functions to create the event objects that the Google Calendar API uses
  */
-function processRegularClass(day, offset, timezone, [summary, location, start, end, specifiedDays]) {
+function processRegularClass(
+  day,
+  offset,
+  [
+    summary,
+    location,
+    [
+      startHour,
+      startMinute,
+      startSeconds
+    ],
+    [
+      endHour,
+      endMinute,
+      endSeconds
+    ],
+    specifiedDays
+  ]
+) {
   const days = specifiedDays || '12345';
 
+  const startDate = new Date(day);
+  startDate.setDate(startDate.getDate() + 1);
+  startDate.setHours(startHour);
+  startDate.setMinutes(startMinute);
+  startDate.setSeconds(startSeconds);
+
+  const endDate = new Date(day);
+  endDate.setDate(endDate.getDate() + 1);
+  endDate.setHours(endHour);
+  endDate.setMinutes(endMinute);
+  endDate.setSeconds(endSeconds);
+
   if (days.indexOf(offset.toString()) > -1) {
-    return createEventObject({ summary, location, start: `${day}T${start}${timezone}`, end: `${day}T${end}${timezone}` });
+    return createEventObject({ summary, location, start: startDate.toISOString(), end: endDate.toISOString() });
   }
 }
 
 function makeEntry() {
   let calendarId = null;
 
+  // Regex for matching calendar event descriptions
+  //const isDaylightSavingsTime = true;
+  //const timezoneOffset = isDaylightSavingsTime ? 4 : 5;
+  const noSchoolRegex = /^NO SCHOOL/;
+
   // Load event templates
-  const standardEntries = require('./events.json');
+  const standardEntries = require('./events.json').map((entry) => {
+    entry[2] = entry[2].split(':').map((x) => parseInt(x));
+    entry[3] = entry[3].split(':').map((x) => parseInt(x));
+    return entry;
+  });
 
   // Find the Sunday for the current week,
   // Sunday's `getDate()` is 0, use it to find Monday - Friday
@@ -241,17 +285,13 @@ function makeEntry() {
   });
   const dateStrings = dates.map(x => x.toISOString().split('T')[0]);
 
-  // Regex for matching calendar event descriptions
-  const timezone = '-05:00';
-  const noSchoolRegex = /^NO SCHOOL/;
-
   // Storage for potential events, filtered later if present already on calendar
   let potentialCalendarEvents = [];
 
   // Parse through template to generate the calendar events
   const addEvents = (day, offset, entries) => {
     for (const entry of entries) {
-      potentialCalendarEvents.push(processRegularClass(day, offset, timezone, entry));
+      potentialCalendarEvents.push(processRegularClass(day, offset, entry));
     }
   };
 
@@ -259,7 +299,7 @@ function makeEntry() {
   const endTime = new Date(dates[dates.length - 1].getTime());
   endTime.setDate(endTime.getDate() + 1);
 
-  // Get the 'School' calendar from the list of calendars the account has access to.
+  // Get the target calendar from the list of calendars the account has access to.
   getCalendarId().then((id) => {
     calendarId = id;
 
