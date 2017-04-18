@@ -16,7 +16,7 @@ let weekOffset = 0;
 if (process.argv.length > 2) {
   console.log(process.argv[2]);
   try {
-    weekOffset = Math.abs(parseInt(process.argv[2]));
+    weekOffset = parseInt(process.argv[2]);
   } catch (e) {
     console.error('Invalid number for week offset', e);
     console.error(e.stack);
